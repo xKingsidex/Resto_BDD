@@ -201,7 +201,7 @@
                                 <textarea class="form-control custom-input" aria-label="With textarea"></textarea>
                             </div>
                             <div class="text-center">
-                                <a href="#reservation" class="btn btn-reservation">Réserver</a>
+                                <a href="reservation.php" class="btn btn-reservation">Réserver</a>
                             </div>
                         </div>
                     </div>
