@@ -1,0 +1,92 @@
+body {
+    background-color: #333438;
+    color: #fff;
+    font-family: 'Lora', sans-serif;
+    scroll-behavior: smooth;  /* Ajout du smooth scroll */
+}
+
+html {
+    scroll-behavior: smooth;  /* Ajout du smooth scroll également sur html pour une meilleure compatibilité */
+}
+
+.img-hover:hover {
+    transform: scale(1.1);
+    transition: transform 0.3s ease;
+}
+
+.navbar {
+    background-color: #333438;
+}
+
+.navbar-brand, .nav-link {
+    color: #c1a068 !important;
+}
+
+.btn-reservation {
+    background-color: #c1a068;
+    border: none;
+    color: #333438;
+}
+
+.btn-reservation:hover {
+    background-color: #c1a068;
+}
+.contact-icon {
+    color: #c1a068;
+    transition: transform 0.3s ease;
+}
+
+.contact-item {
+    transition: transform 0.3s ease;
+}
+
+.contact-item:hover {
+    transform: translateX(10px);
+}
+
+.contact-item:hover .contact-icon {
+    transform: scale(1.1);
+}
+
+.social-link {
+    text-decoration: none;
+    transition: transform 0.3s ease;
+}
+
+.social-link:hover {
+    transform: scale(0.7);
+}
+
+.custom-input {
+    background-color: black !important; 
+    color: white !important; 
+    border: 1px solid #c1a068 !important; 
+}
+
+
+.custom-input::placeholder {
+    color: #fff;
+}
+
+.custom-input[type="date"] {
+    color: white !important;
+}
+
+
+.custom-input textarea,
+.custom-input[type="date"],
+.custom-input[type="email"] {
+    background-color: black !important;
+    color: white !important;
+}
+
+
+.input-group-text {
+    background-color: #0000; 
+    color: white !important;
+    border: 1px solid #c1a068 !important;
+}
+
+.card {
+    border-color: #c1a068 !important;
+}
