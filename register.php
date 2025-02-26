@@ -9,12 +9,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $prenom = trim($_POST["prenom"]);
     $email = trim($_POST["email"]);
     $password = $_POST["password"];
-    $confirm_password = $_POST["confirm_password"];
+    $postal = trim($_POST["postal"]);
+    $phone = trim($_POST["phone"]);
     
-    // Validation simple
-    if ($password !== $confirm_password) {
-        $error_message = "Les mots de passe ne correspondent pas.";
-    } else {
+    // Convertir le format de date de JJ/MM/AAAA à YYYY-MM-DD
+    $birthday = trim($_POST["birthday"]);
+    if (!empty($birthday)) {
+        // Diviser la date en jour, mois, année
+        $date_parts = explode('/', $birthday);
+        if (count($date_parts) == 3) {
+            $jour = $date_parts[0];
+            $mois = $date_parts[1];
+            $annee = $date_parts[2];
+            
+            // Vérifier si la date est valide
+            if (checkdate((int)$mois, (int)$jour, (int)$annee)) {
+                // Reformater au format YYYY-MM-DD pour MySQL
+                $birthday = "$annee-$mois-$jour";
+            } else {
+                $error_message = "Date de naissance invalide. Utilisez le format JJ/MM/AAAA.";
+            }
+        } else {
+            $error_message = "Format de date incorrect. Utilisez le format JJ/MM/AAAA (ex: 08/10/2004).";
+        }
+    }
+    
+    // Continuer uniquement s'il n'y a pas d'erreur de date
+    if (empty($error_message)) {
         // Vérifier si l'email existe déjà
         $check_sql = "SELECT * FROM users WHERE email = :email";
         $check_stmt = $pdo->prepare($check_sql);
@@ -24,7 +45,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error_message = "Cet email est déjà utilisé.";
         } else {
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $sql = "INSERT INTO users (nom, prenom, email, password) VALUES (:nom, :prenom, :email, :password)";
+            $sql = "INSERT INTO users (nom, prenom, email, password, code_postal, date_naissance, telephone) 
+                    VALUES (:nom, :prenom, :email, :password, :postal, :birthday, :phone)";
             $stmt = $pdo->prepare($sql);
             
             try {
@@ -32,7 +54,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     ":nom" => $nom,
                     ":prenom" => $prenom,
                     ":email" => $email,
-                    ":password" => $hashed_password
+                    ":password" => $hashed_password,
+                    ":postal" => $postal,
+                    ":birthday" => $birthday,
+                    ":phone" => $phone
                 ]);
                 $success_message = "Inscription réussie !";
             } catch (PDOException $e) {
@@ -42,7 +67,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
