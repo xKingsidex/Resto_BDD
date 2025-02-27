@@ -1,144 +1,159 @@
 <?php
 require_once "config.php";
+session_start();
 
 $success_message = "";
 $error_message = "";
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $nom = trim($_POST["nom"]);
-    $prenom = trim($_POST["prenom"]);
-    $email = trim($_POST["email"]);
-    $password = $_POST["password"];
-    $postal = trim($_POST["postal"]);
-    $phone = trim($_POST["phone"]);
-    
-    // Convertir le format de date de JJ/MM/AAAA à YYYY-MM-DD
-    $birthday = trim($_POST["birthday"]);
-    if (!empty($birthday)) {
-        // Diviser la date en jour, mois, année
-        $date_parts = explode('/', $birthday);
-        if (count($date_parts) == 3) {
-            $jour = $date_parts[0];
-            $mois = $date_parts[1];
-            $annee = $date_parts[2];
-            
-            // Vérifier si la date est valide
-            if (checkdate((int)$mois, (int)$jour, (int)$annee)) {
-                // Reformater au format YYYY-MM-DD pour MySQL
-                $birthday = "$annee-$mois-$jour";
-            } else {
-                $error_message = "Date de naissance invalide. Utilisez le format JJ/MM/AAAA.";
-            }
-        } else {
-            $error_message = "Format de date incorrect. Utilisez le format JJ/MM/AAAA (ex: 08/10/2004).";
-        }
-    }
-    
-    // Continuer uniquement s'il n'y a pas d'erreur de date
-    // Dans la partie traitement du formulaire de register.php
-if (empty($error_message)) {
-    // Vérifier si l'email existe déjà
-    $check_sql = "SELECT * FROM users WHERE email = :email";
-    $check_stmt = $pdo->prepare($check_sql);
-    $check_stmt->execute([":email" => $email]);
-    
-    if ($check_stmt->rowCount() > 0) {
-        $error_message = "Cet email est déjà utilisé.";
-    } else {
-        // Générer un token unique
-        $verification_token = bin2hex(random_bytes(32));
-        
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $sql = "INSERT INTO users (nom, prenom, email, password, code_postal, date_naissance, telephone, verification_token, email_verified) 
-                VALUES (:nom, :prenom, :email, :password, :postal, :birthday, :phone, :token, 0)";
-        $stmt = $pdo->prepare($sql);
-        
-        try {
-            $stmt->execute([
-                ":nom" => $nom,
-                ":prenom" => $prenom,
-                ":email" => $email,
-                ":password" => $hashed_password,
-                ":postal" => $postal,
-                ":birthday" => $birthday,
-                ":phone" => $phone,
-                ":token" => $verification_token
-            ]);
-            
-            // Envoi de l'email de vérification
-            $to = $email;
-            $subject = "Vérification de votre compte - Le Gourmet Nomade";
-            $verification_link = "http://localhost/Resto_BDD/verify.php?token=" . $verification_token;
-            
-            // Configuration de l'envoi d'email avec PHPMailer
-            require 'PHPMailer/src/Exception.php';
-            require 'PHPMailer/src/PHPMailer.php';
-            require 'PHPMailer/src/SMTP.php';
-            
-            $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-            try {
-                // Configuration du serveur
-                $mail->isSMTP();
-                $mail->Host = 'smtp.gmail.com'; // Ou votre serveur SMTP
-                $mail->SMTPAuth = true;
-                $mail->Username = 'enzo.foulon53@gmail.com'; // Votre email
-                $mail->Password = 'gxgr wkqp wvnk wtby'; // Votre mot de passe d'application
-                $mail->SMTPSecure = 'tls';
-                $mail->Port = 587;
-                $mail->SMTPOptions = array(
-                    'ssl' => array(
-                        'verify_peer' => false,
-                        'verify_peer_name' => false,
-                        'allow_self_signed' => true
-                    ));
-                
-                // Destinataires
-                $mail->setFrom('enzo.foulon53@gmail.com', 'Le Gourmet Nomade');
-                $mail->addAddress($email);
-                
-                // Contenu
-                $mail->isHTML(true);
-                $mail->Subject = $subject;
-                $mail->Body = "
-                    <html>
-                    <head>
-                        <style>
-                            body { font-family: Arial, sans-serif; }
-                            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                            .header { background-color: #c1a068; color: white; padding: 10px; text-align: center; }
-                            .content { padding: 20px; }
-                            .button { background-color: #c1a068; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class='container'>
-                            <div class='header'>
-                                <h2>Bienvenue chez Le Gourmet Nomade</h2>
-                            </div>
-                            <div class='content'>
-                                <p>Bonjour $prenom $nom,</p>
-                                <p>Merci pour votre inscription. Pour activer votre compte, veuillez cliquer sur le lien ci-dessous :</p>
-                                <p style='text-align: center;'><a href='$verification_link' class='button'>Vérifier mon compte</a></p>
-                                <p>Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :</p>
-                                <p>$verification_link</p>
-                                <p>À bientôt !</p>
-                                <p>L'équipe du Gourmet Nomade</p>
-                            </div>
-                        </div>
-                    </body>
-                    </html>
-                ";
-                
-                $mail->send();
-                $success_message = "Inscription réussie ! Un email de vérification a été envoyé à votre adresse. Veuillez vérifier votre compte avant de vous connecter.";
-            } catch (Exception $e) {
-                $error_message = "Erreur lors de l'envoi de l'email : " . $mail->ErrorInfo;
-            }
-        } catch (PDOException $e) {
-            $error_message = "Erreur lors de l'inscription : " . $e->getMessage();
-        }
-    }
+// Génération du token CSRF
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
+$csrf_token = $_SESSION['csrf_token'];
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Vérification du token CSRF
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $error_message = "Erreur de validation du formulaire. Veuillez réessayer.";
+    } else {
+        $nom = trim($_POST["nom"]);
+        $prenom = trim($_POST["prenom"]);
+        $email = trim($_POST["email"]);
+        $password = $_POST["password"];
+        $postal = trim($_POST["postal"]);
+        $phone = trim($_POST["phone"]);
+        
+        // Convertir le format de date de JJ/MM/AAAA à YYYY-MM-DD
+        $birthday = trim($_POST["birthday"]);
+        if (!empty($birthday)) {
+            // Diviser la date en jour, mois, année
+            $date_parts = explode('/', $birthday);
+            if (count($date_parts) == 3) {
+                $jour = $date_parts[0];
+                $mois = $date_parts[1];
+                $annee = $date_parts[2];
+                
+                // Vérifier si la date est valide
+                if (checkdate((int)$mois, (int)$jour, (int)$annee)) {
+                    // Reformater au format YYYY-MM-DD pour MySQL
+                    $birthday = "$annee-$mois-$jour";
+                } else {
+                    $error_message = "Date de naissance invalide. Utilisez le format JJ/MM/AAAA.";
+                }
+            } else {
+                $error_message = "Format de date incorrect. Utilisez le format JJ/MM/AAAA (ex: 08/10/2004).";
+            }
+        }
+        
+        // Continuer uniquement s'il n'y a pas d'erreur de date
+        if (empty($error_message)) {
+            // Vérifier si l'email existe déjà
+            $check_sql = "SELECT * FROM users WHERE email = :email";
+            $check_stmt = $pdo->prepare($check_sql);
+            $check_stmt->execute([":email" => $email]);
+            
+            if ($check_stmt->rowCount() > 0) {
+                $error_message = "Cet email est déjà utilisé.";
+            } else {
+                // Générer un token unique
+                $verification_token = bin2hex(random_bytes(32));
+                
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                $sql = "INSERT INTO users (nom, prenom, email, password, code_postal, date_naissance, telephone, verification_token, email_verified) 
+                        VALUES (:nom, :prenom, :email, :password, :postal, :birthday, :phone, :token, 0)";
+                $stmt = $pdo->prepare($sql);
+                
+                try {
+                    $stmt->execute([
+                        ":nom" => $nom,
+                        ":prenom" => $prenom,
+                        ":email" => $email,
+                        ":password" => $hashed_password,
+                        ":postal" => $postal,
+                        ":birthday" => $birthday,
+                        ":phone" => $phone,
+                        ":token" => $verification_token
+                    ]);
+                    
+                    // Envoi de l'email de vérification
+                    $to = $email;
+                    $subject = "Vérification de votre compte - Le Gourmet Nomade";
+                    $verification_link = "http://localhost/Resto_BDD/verify.php?token=" . $verification_token;
+                    
+                    // Configuration de l'envoi d'email avec PHPMailer
+                    require 'PHPMailer/src/Exception.php';
+                    require 'PHPMailer/src/PHPMailer.php';
+                    require 'PHPMailer/src/SMTP.php';
+                    
+                    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+                    try {
+                        // Configuration du serveur
+                        $mail->isSMTP();
+                        $mail->Host = 'smtp.gmail.com'; // Ou votre serveur SMTP
+                        $mail->SMTPAuth = true;
+                        $mail->Username = 'enzo.foulon53@gmail.com'; // Votre email
+                        $mail->Password = 'gxgr wkqp wvnk wtby'; // Votre mot de passe d'application
+                        $mail->SMTPSecure = 'tls';
+                        $mail->Port = 587;
+                        $mail->SMTPOptions = array(
+                            'ssl' => array(
+                                'verify_peer' => false,
+                                'verify_peer_name' => false,
+                                'allow_self_signed' => true
+                            ));
+                        
+                        // Destinataires
+                        $mail->setFrom('enzo.foulon53@gmail.com', 'Le Gourmet Nomade');
+                        $mail->addAddress($email);
+                        
+                        // Contenu
+                        $mail->isHTML(true);
+                        $mail->Subject = $subject;
+                        $mail->Body = "
+                            <html>
+                            <head>
+                                <style>
+                                    body { font-family: Arial, sans-serif; }
+                                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                                    .header { background-color: #c1a068; color: white; padding: 10px; text-align: center; }
+                                    .content { padding: 20px; }
+                                    .button { background-color: #c1a068; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
+                                </style>
+                            </head>
+                            <body>
+                                <div class='container'>
+                                    <div class='header'>
+                                        <h2>Bienvenue chez Le Gourmet Nomade</h2>
+                                    </div>
+                                    <div class='content'>
+                                        <p>Bonjour $prenom $nom,</p>
+                                        <p>Merci pour votre inscription. Pour activer votre compte, veuillez cliquer sur le lien ci-dessous :</p>
+                                        <p style='text-align: center;'><a href='$verification_link' class='button'>Vérifier mon compte</a></p>
+                                        <p>Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :</p>
+                                        <p>$verification_link</p>
+                                        <p>À bientôt !</p>
+                                        <p>L'équipe du Gourmet Nomade</p>
+                                    </div>
+                                </div>
+                            </body>
+                            </html>
+                        ";
+                        
+                        $mail->send();
+                        $success_message = "Inscription réussie ! Un email de vérification a été envoyé à votre adresse. Veuillez vérifier votre compte avant de vous connecter.";
+                        
+                        // Régénérer le token CSRF après une inscription réussie
+                        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                        $csrf_token = $_SESSION['csrf_token'];
+                    } catch (Exception $e) {
+                        $error_message = "Erreur lors de l'envoi de l'email : " . $mail->ErrorInfo;
+                    }
+                } catch (PDOException $e) {
+                    $error_message = "Erreur lors de l'inscription : " . $e->getMessage();
+                }
+            }
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -223,7 +238,7 @@ if (empty($error_message)) {
                         <li class="nav-item"><a class="nav-link" href="site.php#menu">Menu</a></li>
                         <li class="nav-item"><a class="nav-link" href="site.php#about">À Propos</a></li>
                     </ul>
-                    <a href="site.php#reservation" class="btn btn-custom ms-3">Réserver</a>
+                    <a href="reservation.php" class="btn btn-custom ms-3">Réserver</a>
                 </div>
             </div>
         </nav>
@@ -239,19 +254,22 @@ if (empty($error_message)) {
                     <div class="form-container bg-dark bg-opacity-50 p-5">
                         
                         
-                        <?php if (!empty($success_message)): ?>
-                            <div class="alert alert-success-custom text-center mb-4" role="alert">
-                                <?php echo $success_message; ?> <a href="login.php" class="login-link fw-bold">Se connecter</a>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <?php if (!empty($error_message)): ?>
-                            <div class="alert alert-danger-custom text-center mb-4" role="alert">
-                                <?php echo $error_message; ?>
-                            </div>
+                    <?php if (!empty($success_message)): ?>
+                        <div class="alert alert-success-custom text-center mb-4" role="alert">
+                    <?php echo htmlspecialchars($success_message); ?> <a href="login.php" class="login-link fw-bold">Se connecter</a>
+                    </div>
                         <?php endif; ?>
 
+                        <?php if (!empty($error_message)): ?>
+                    <div class="alert alert-danger-custom text-center mb-4" role="alert">
+                        <?php echo htmlspecialchars($error_message); ?>
+                    </div>
+                    <?php endif; ?>
+
                         <form method="POST" class="mb-4">
+                            <!-- Ajout du champ caché pour le token CSRF -->
+                            <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+                            
                             <div class="row mb-4">
                                 <div class="col-md-6 mb-3 mb-md-0">
                                     <div class="input-group">

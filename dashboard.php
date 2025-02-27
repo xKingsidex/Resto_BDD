@@ -109,6 +109,7 @@ function updateUserProfile($userId, $nom, $prenom, $email, $telephone, $date_nai
         return false;
     }
 }
+
 // Fonction pour supprimer un compte utilisateur
 function deleteUserAccount($userId) {
     try {
@@ -141,6 +142,25 @@ function deleteUserAccount($userId) {
     }
 }
 
+// Fonction pour enregistrer un message de contact
+function saveContactMessage($userId, $objet, $message) {
+    try {
+        $db = connectDB();
+        $query = $db->prepare("
+            INSERT INTO contact_messages (user_id, objet, message, date_envoi)
+            VALUES (:user_id, :objet, :message, NOW())
+        ");
+        
+        $query->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $query->bindParam(':objet', $objet, PDO::PARAM_STR);
+        $query->bindParam(':message', $message, PDO::PARAM_STR);
+        
+        return $query->execute();
+    } catch(PDOException $e) {
+        error_log("Erreur lors de l'enregistrement du message: " . $e->getMessage());
+        return false;
+    }
+}
 
 // Récupération du profil utilisateur
 $userProfile = getUserProfile($_SESSION["user_id"]);
@@ -185,7 +205,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
         }
     }
 }
+
+// Traitement du formulaire de contact
+$contactMessage = '';
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['send_contact'])) {
+    // Vérification du token CSRF
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $contactMessage = '<div class="alert alert-danger">Erreur de sécurité. Veuillez réessayer.</div>';
+    } else {
+        // Validation et nettoyage des données
+        $objet = htmlspecialchars(trim($_POST['objet']), ENT_QUOTES, 'UTF-8');
+        $message = htmlspecialchars(trim($_POST['message']), ENT_QUOTES, 'UTF-8');
+        
+        if (empty($objet) || empty($message)) {
+            $contactMessage = '<div class="alert alert-danger">Veuillez remplir tous les champs.</div>';
+        } else {
+            // Enregistrement du message dans la base de données
+            $saveSuccess = saveContactMessage($_SESSION["user_id"], $objet, $message);
+            
+            if ($saveSuccess) {
+                $contactMessage = '<div class="alert alert-success">Votre message a été envoyé avec succès. Nous vous répondrons dans les meilleurs délais.</div>';
+            } else {
+                $contactMessage = '<div class="alert alert-danger">Une erreur est survenue lors de l\'envoi du message. Veuillez réessayer.</div>';
+            }
+        }
+    }
+}
+
 // Traitement de la demande de suppression de compte
+$accountDeleteMessage = '';
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_account'])) {
     // Vérification du token CSRF
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
@@ -329,129 +377,159 @@ $fullName = getFullName($userProfile);
             </div>
         </nav>
     </header>
-
     <main class="dashboard-section">
-        <div class="container">
-            <h1 class="text-center mt-5">
-                <span class="accent-color">Bienvenue, <?php echo $fullName; ?> !</span>
-            </h1>
-            
-            <div class="row mt-5">
-                <div class="col-md-3 mb-4">
-                    <div class="profile-card bg-dark bg-opacity-50 p-3">
-                        <div class="text-center mb-4">
-                            <i class="fas fa-user-circle fa-5x accent-color"></i>
-                            <h4 class="mt-3"><?php echo $fullName; ?></h4>
-                            
-                        </div>
+    <div class="container">
+        <h1 class="text-center mt-5">
+            <span class="accent-color">Bienvenue, <?php echo $fullName; ?> !</span>
+        </h1>
+        
+        <div class="row mt-5">
+            <div class="col-md-3 mb-4">
+                <div class="profile-card bg-dark bg-opacity-50 p-3">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-user-circle fa-5x accent-color"></i>
+                        <h4 class="mt-3"><?php echo $fullName; ?></h4>
                         
-                        <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
-                            <a href="#v-pills-profile" class="nav-link mb-2 active" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" role="tab">
-                                <i class="fas fa-user-cog me-2"></i> Profil
-                            </a>
-                            <a href="user_reservation.php" class="nav-link mb-2">
-                                <i class="fas fa-calendar-alt me-2"></i> Mes réservations
-                            </a>
-                            <a href="reservation.php" class="nav-link mb-2">
-                                <i class="fas fa-plus-circle me-2"></i> Nouvelle réservation
-                            </a>
-                        </div>
-                        
-                        <div class="mt-4 text-center">
-                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
-                             <i class="fas fa-user-slash me-1"></i> Supprimer le compte
-                        </button>
-                        </div>
+                    </div>
+                    
+                    <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                        <a href="#v-pills-profile" class="nav-link mb-2 active" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" role="tab">
+                            <i class="fas fa-user-cog me-2"></i> Profil
+                        </a>
+                        <a href="#v-pills-contact" class="nav-link mb-2" id="v-pills-contact-tab" data-bs-toggle="pill" data-bs-target="#v-pills-contact" role="tab">
+                            <i class="fas fa-envelope me-2"></i> Contact
+                        </a>
+                        <a href="user_reservation.php" class="nav-link mb-2">
+                            <i class="fas fa-calendar-alt me-2"></i> Mes réservations
+                        </a>
+                        <a href="reservation.php" class="nav-link mb-2">
+                            <i class="fas fa-plus-circle me-2"></i> Nouvelle réservation
+                        </a>
+                    </div>
+                    
+                    <div class="mt-4 text-center">
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                         <i class="fas fa-user-slash me-1"></i> Supprimer le compte
+                    </button>
+                    </div>
 
-                        <!-- Modal de confirmation de suppression -->
+                    <!-- Modal de confirmation de suppression -->
                     <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
-                         <div class="modal-dialog">
-                                <div class="modal-content bg-dark text-white">
-                                    <div class="modal-header border-bottom border-secondary">
-                                        <h5 class="modal-title" id="deleteAccountModalLabel">Confirmation de suppression</h5>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
+                        <div class="modal-dialog">
+                            <div class="modal-content bg-dark text-white">
+                                <div class="modal-header border-bottom border-secondary">
+                                    <h5 class="modal-title" id="deleteAccountModalLabel">Confirmation de suppression</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
                                 <div class="modal-body">
                                     <p class="text-danger">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    <strong>Attention :</strong> Vous êtes sur le point de supprimer définitivement votre compte.
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>Attention :</strong> Vous êtes sur le point de supprimer définitivement votre compte.
                                     </p>
                                     <p>Cette action est <strong>irréversible</strong> et entraînera la suppression de toutes vos réservations et informations personnelles.</p>
                                     <p>Êtes-vous sûr de vouloir continuer ?</p>
                                 </div>
-                            <div class="modal-footer border-top border-secondary">
-                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <div class="modal-footer border-top border-secondary">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                    <form method="POST" action="dashboard.php">
+                                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                        <button type="submit" name="delete_account" class="btn btn-danger">
+                                            <i class="fas fa-user-slash me-1"></i> Supprimer définitivement
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <div class="profile-card bg-dark bg-opacity-50 p-3">
+                    <div class="tab-content" id="v-pills-tabContent">
+                        <!-- Onglet Profil -->
+                        <div class="tab-pane fade show active" id="v-pills-profile" role="tabpanel" aria-labelledby="v-pills-profile-tab">
+                            <div class="p-3">
+                                <h4 class="mb-4 accent-color"><i class="fas fa-user-cog me-2"></i> Informations personnelles</h4>
+                                <?php echo $profileUpdateMessage; ?>
                                 <form method="POST" action="dashboard.php">
-                                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                                <button type="submit" name="delete_account" class="btn btn-danger">
-                                <i class="fas fa-user-slash me-1"></i> Supprimer définitivement
-                                </button>
+                                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="nom" class="form-label text-white">Nom</label>
+                                            <input type="text" class="form-control" id="nom" name="nom" value="<?php echo htmlspecialchars($userProfile['nom'], ENT_QUOTES, 'UTF-8'); ?>" required style="background-color: #000; border: 1px solid #c1a068; color: white;">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="prenom" class="form-label text-white">Prénom</label>
+                                            <input type="text" class="form-control" id="prenom" name="prenom" value="<?php echo htmlspecialchars($userProfile['prenom'], ENT_QUOTES, 'UTF-8'); ?>" required style="background-color: #000; border: 1px solid #c1a068; color: white;">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label text-white">Email</label>
+                                        <input type="email" class="form-control" id="email" name="email" value="<?php echo htmlspecialchars($userProfile['email'], ENT_QUOTES, 'UTF-8'); ?>" required style="background-color: #000; border: 1px solid #c1a068; color: white;">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="telephone" class="form-label text-white">Téléphone</label>
+                                        <input type="tel" class="form-control" id="telephone" name="telephone" value="<?php echo htmlspecialchars($userProfile['telephone'], ENT_QUOTES, 'UTF-8'); ?>" style="background-color: #000; border: 1px solid #c1a068; color: white;">
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="date_naissance" class="form-label text-white">Date de naissance</label>
+                                            <input type="date" class="form-control" id="date_naissance" name="date_naissance" value="<?php echo htmlspecialchars($userProfile['date_naissance'], ENT_QUOTES, 'UTF-8'); ?>" style="background-color: #000; border: 1px solid #c1a068; color: white;">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="code_postal" class="form-label text-white">Code postal</label>
+                                            <input type="text" class="form-control" id="code_postal" name="code_postal" value="<?php echo htmlspecialchars($userProfile['code_postal'], ENT_QUOTES, 'UTF-8'); ?>" style="background-color: #000; border: 1px solid #c1a068; color: white;">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                        <button type="submit" name="update_profile" class="btn btn-reservation">
+                                            <i class="fas fa-save me-1"></i> Enregistrer les modifications
+                                        </button>
+                                    </div>
                                 </form>
                             </div>
-        </div>
-    </div>
-</div>
+                        </div>
+                        
+                        <!-- Onglet Contact -->
+                        <div class="tab-pane fade" id="v-pills-contact" role="tabpanel" aria-labelledby="v-pills-contact-tab">
+                            <div class="p-3">
+                                <h4 class="mb-4 accent-color"><i class="fas fa-envelope me-2"></i> Nous contacter</h4>
+                                <?php echo $contactMessage; ?>
+                                <form method="POST" action="dashboard.php">
+                                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                    
+                                    <div class="mb-3">
+                                        <label for="objet" class="form-label text-white">Objet</label>
+                                        <input type="text" class="form-control" id="objet" name="objet" required style="background-color: #000; border: 1px solid #c1a068; color: white;">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="message" class="form-label text-white">Message</label>
+                                        <textarea class="form-control" id="message" name="message" rows="5" required style="background-color: #000; border: 1px solid #c1a068; color: white;"></textarea>
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                        <button type="submit" name="send_contact" class="btn btn-reservation">
+                                            <i class="fas fa-paper-plane me-1"></i> Envoyer
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="col-md-9">
-                    <div class=" profile-card bg-dark bg-opacity-50 p-3" id="v-pills-tabContent">
-                        <!-- Onglet Profil -->
-<div class="tab-pane fade show active" id="v-pills-profile" role="tabpanel">
-    <div class="p-3">
-        <h4 class="mb-4 accent-color"><i class="fas fa-user-cog me-2"></i> Informations personnelles</h4>
-        <?php echo $profileUpdateMessage; ?>
-        <form method="POST" action="dashboard.php">
-            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-            
-            <div class="row mb-3">
-                <div class="col-md-6 mb-3">
-                    <label for="nom" class="form-label text-white">Nom</label>
-                    <input type="text" class="form-control" id="nom" name="nom" value="<?php echo htmlspecialchars($userProfile['nom'], ENT_QUOTES, 'UTF-8'); ?>" required style="background-color: #000; border: 1px solid #c1a068; color: white;">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="prenom" class="form-label text-white">Prénom</label>
-                    <input type="text" class="form-control" id="prenom" name="prenom" value="<?php echo htmlspecialchars($userProfile['prenom'], ENT_QUOTES, 'UTF-8'); ?>" required style="background-color: #000; border: 1px solid #c1a068; color: white;">
-                </div>
             </div>
-            
-            <div class="mb-3">
-                <label for="email" class="form-label text-white">Email</label>
-                <input type="email" class="form-control" id="email" name="email" value="<?php echo htmlspecialchars($userProfile['email'], ENT_QUOTES, 'UTF-8'); ?>" required style="background-color: #000; border: 1px solid #c1a068; color: white;">
-            </div>
-            
-            <div class="mb-3">
-                <label for="telephone" class="form-label text-white">Téléphone</label>
-                <input type="tel" class="form-control" id="telephone" name="telephone" value="<?php echo htmlspecialchars($userProfile['telephone'], ENT_QUOTES, 'UTF-8'); ?>" style="background-color: #000; border: 1px solid #c1a068; color: white;">
-            </div>
-            
-            <div class="row mb-3">
-                <div class="col-md-6 mb-3">
-                    <label for="date_naissance" class="form-label text-white">Date de naissance</label>
-                    <input type="date" class="form-control" id="date_naissance" name="date_naissance" value="<?php echo htmlspecialchars($userProfile['date_naissance'], ENT_QUOTES, 'UTF-8'); ?>" style="background-color: #000; border: 1px solid #c1a068; color: white;">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="code_postal" class="form-label text-white">Code postal</label>
-                    <input type="text" class="form-control" id="code_postal" name="code_postal" value="<?php echo htmlspecialchars($userProfile['code_postal'], ENT_QUOTES, 'UTF-8'); ?>" style="background-color: #000; border: 1px solid #c1a068; color: white;">
-                </div>
-            </div>
-            
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <button type="submit" name="update_profile" class="btn btn-reservation">
-                    <i class="fas fa-save me-1"></i> Enregistrer les modifications
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
-</div>
-                        
-                        
+</main>
 
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
+
 
     <footer class="bg-dark text-white py-5">
         <div class="container">

@@ -36,7 +36,7 @@ require_once 'config.php';
                         <li class="nav-item"><a class="nav-link" href="#menu">Menu</a></li>
                         <li class="nav-item"><a class="nav-link" href="#about">À Propos</a></li>
                     </ul>
-                    <a href="#reservation" class="btn btn-reservation ms-3">Réserver</a>
+                    <a href="reservation.php" class="btn btn-reservation ms-3">Réserver</a>
                 </div>
             </div>
         </nav>
@@ -185,38 +185,7 @@ require_once 'config.php';
             </div>
         </section>
 
-        <section id="reservation" class="min-vh-100 d-flex justify-content-center align-items-center flex-column py-5">
-            <p class="fs-1 mb-5" style="color: #c1a068;">RESERVATION</p>
-            <div class="container">
-                <div class="row justify-content-center">
-                    <div class="col-md-8">
-                        <div class="p-4 rounded-3 bg-dark bg-opacity-50">
-                            <div class="input-group mb-5">
-                                <input type="text" class="form-control custom-input" placeholder="Username" aria-label="Username">
-                            </div>
-                            <div class="input-group mb-5">
-                                <input type="text" class="form-control custom-input" placeholder="0123456789" aria-label="Téléphone">
-                            </div>
-                            <div class="input-group mb-5">
-                                <input type="email" class="form-control custom-input" placeholder="Email" aria-label="Email" aria-describedby="basic-addon2">
-                                <span class="input-group-text" id="basic-addon2">@example.com</span>
-                            </div>
-                            <div class="input-group mb-5">
-                                <span class="input-group-text">Date</span>
-                                <input type="date" class="form-control custom-input">
-                            </div>
-                            <div class="input-group mb-5 w-100">
-                                <span class="input-group-text">Description</span>
-                                <textarea class="form-control custom-input" aria-label="With textarea"></textarea>
-                            </div>
-                            <div class="text-center">
-                                <a href="reservation.php" class="btn btn-reservation">Réserver</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
+        
     </main>
 
     <footer class="bg-dark text-white py-5">

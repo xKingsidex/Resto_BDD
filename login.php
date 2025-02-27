@@ -2,27 +2,44 @@
 require_once "config.php";
 session_start();
 
+// Génération du token CSRF s'il n'existe pas déjà
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Vérification de la requête POST
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = $_POST["email"];
-    $password = $_POST["password"];
-
-    $sql = "SELECT * FROM users WHERE email = :email";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([":email" => $email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($user && password_verify($password, $user["password"])) {
-        // Vérifier si l'email a été validé
-        if ($user["email_verified"] == 1) {
-            $_SESSION["user_id"] = $user["id"];
-            $_SESSION["nom"] = $user["nom"];
-            header("Location: dashboard.php");
-            exit;
-        } else {
-            $error_message = "Votre compte n'a pas été vérifié. Veuillez vérifier votre email pour activer votre compte.";
-        }
+    // Vérification du token CSRF
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        // Token CSRF invalide
+        $error_message = "Erreur de validation du formulaire. Veuillez réessayer.";
     } else {
-        $error_message = "Email ou mot de passe incorrect.";
+        // Protection XSS en filtrant les entrées
+        $email = filter_var($_POST["email"], FILTER_SANITIZE_EMAIL);
+        $password = $_POST["password"]; // Pas besoin de filtrer le mot de passe car il est hashé
+
+        $sql = "SELECT * FROM users WHERE email = :email";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([":email" => $email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user && password_verify($password, $user["password"])) {
+            // Vérifier si l'email a été validé
+            if ($user["email_verified"] == 1) {
+                $_SESSION["user_id"] = $user["id"];
+                $_SESSION["nom"] = htmlspecialchars($user["nom"], ENT_QUOTES, 'UTF-8');
+                
+                // Régénérer l'ID de session pour éviter les attaques de fixation de session
+                session_regenerate_id(true);
+                
+                header("Location: dashboard.php");
+                exit;
+            } else {
+                $error_message = "Votre compte n'a pas été vérifié. Veuillez vérifier votre email pour activer votre compte.";
+            }
+        } else {
+            $error_message = "Email ou mot de passe incorrect.";
+        }
     }
 }
 ?>
@@ -33,6 +50,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Connexion - Le Gourmet Nomade</title>
+    <!-- Protection XSS via Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com 'unsafe-inline'; font-src https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:;">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -105,7 +124,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <li class="nav-item"><a class="nav-link" href="site.php#menu">Menu</a></li>
                         <li class="nav-item"><a class="nav-link" href="site.php#about">À Propos</a></li>
                     </ul>
-                    <a href="site.php#reservation" class="btn btn-custom ms-3">Réserver</a>
+                    <a href="reservation.php" class="btn btn-custom ms-3">Réserver</a>
                 </div>
             </div>
         </nav>
@@ -123,11 +142,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         
                         <?php if (isset($error_message)): ?>
                             <div class="alert alert-custom text-center mb-4" role="alert">
-                                <?php echo $error_message; ?>
+                                <?php echo htmlspecialchars($error_message, ENT_QUOTES, 'UTF-8'); ?>
                             </div>
                         <?php endif; ?>
 
                         <form method="POST" class="mb-4">
+                            <!-- Token CSRF caché -->
+                            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                            
                             <div class="mb-4">
                                 <div class="input-group">
                                     <span class="input-group-text bg-dark text-white border-0">
