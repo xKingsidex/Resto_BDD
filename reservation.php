@@ -470,6 +470,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $user_logged_in && $db_connected) {
                             </div>
                         <?php endif; ?>
                     </div>
+                    <div class="text-center mt-4">
+                            <a href="dashboard.php" class="btn btn-outline-light">
+                                <i class="fas fa-arrow-left me-2"></i> Retour au tableau de bord
+                            </a>
+                        </div>
                 </div>
             </div>
         </section>

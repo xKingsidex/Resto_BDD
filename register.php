@@ -218,7 +218,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <div class="col-md-6 mb-3 mb-md-0">
                                 <div class="input-group">
                                     <span class="input-group-text bg-dark text-white border-0">
-                                        <i class="fas fa-envelope" style="color: #c1a068;"></i>
+                                        <i class="fas fa-cake-candles" style="color: #c1a068;"></i>
                                     </span>
                                     <input type="birthday" name="birthday" class="form-control custom-input" placeholder="08/10/2004" required>
                                 </div>
