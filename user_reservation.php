@@ -322,10 +322,10 @@ if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id']))
                                         
                                         if (!$hasUpcoming):
                                         ?>
-                                        <div class="empty-state">
+                                        <div class="empty-state ">
                                             <i class="far fa-calendar-alt"></i>
                                             <p>Vous n'avez aucune réservation à venir</p>
-                                            <a href="reservation.php" class="btn btn-reservation mt-3">Réserver une table</a>
+                                            <a href="reservation.php" class="btn btn-reservation  mt-3">Réserver une table</a>
                                         </div>
                                         <?php endif; ?>
                                     </div>
@@ -431,10 +431,13 @@ if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id']))
                                     <i class="far fa-calendar-alt mb-3"></i>
                                     <h3 class="mb-3">Vous n'avez aucune réservation</h3>
                                     <p class="mb-4">Réservez une table pour profiter de notre cuisine gastronomique</p>
-                                    <a href="reservation.php" class="btn btn-reservation btn-lg">
+                                    <div class="text-center">
+                                        <a href="reservation.php" class="btn btn-reservation btn-lg">
                                         <i class="fas fa-utensils me-2"></i> Réserver une table
-                                    </a>
+                                        </a>
+                                     </div>
                                 </div>
+                                
                             <?php endif; ?>
                         </div>
                         

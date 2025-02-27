@@ -109,6 +109,38 @@ function updateUserProfile($userId, $nom, $prenom, $email, $telephone, $date_nai
         return false;
     }
 }
+// Fonction pour supprimer un compte utilisateur
+function deleteUserAccount($userId) {
+    try {
+        $db = connectDB();
+        
+        // Commencer une transaction pour s'assurer que toutes les suppressions sont effectuées ou aucune
+        $db->beginTransaction();
+        
+        // D'abord supprimer les réservations de l'utilisateur (pour respecter l'intégrité référentielle)
+        $deleteReservations = $db->prepare("DELETE FROM reservations WHERE user_id = :user_id");
+        $deleteReservations->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $deleteReservations->execute();
+        
+        // Ensuite supprimer le compte utilisateur
+        $deleteUser = $db->prepare("DELETE FROM users WHERE id = :user_id");
+        $deleteUser->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $deleteUser->execute();
+        
+        // Valider la transaction
+        $db->commit();
+        
+        return true;
+    } catch(PDOException $e) {
+        // En cas d'erreur, annuler toutes les modifications
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log("Erreur lors de la suppression du compte: " . $e->getMessage());
+        return false;
+    }
+}
+
 
 // Récupération du profil utilisateur
 $userProfile = getUserProfile($_SESSION["user_id"]);
@@ -150,6 +182,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
             } else {
                 $profileUpdateMessage = '<div class="alert alert-danger">Une erreur est survenue lors de la mise à jour du profil. Veuillez réessayer.</div>';
             }
+        }
+    }
+}
+// Traitement de la demande de suppression de compte
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_account'])) {
+    // Vérification du token CSRF
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $accountDeleteMessage = '<div class="alert alert-danger">Erreur de sécurité. Veuillez réessayer.</div>';
+    } else {
+        // Suppression du compte
+        $deleteSuccess = deleteUserAccount($_SESSION["user_id"]);
+        
+        if ($deleteSuccess) {
+            // Détruire la session et rediriger vers la page d'inscription
+            session_destroy();
+            header("Location: register.php?deleted=1");
+            exit();
+        }
+        
+        else {
+            $accountDeleteMessage = '<div class="alert alert-danger">Une erreur est survenue lors de la suppression du compte. Veuillez réessayer.</div>';
         }
     }
 }
@@ -305,68 +358,95 @@ $fullName = getFullName($userProfile);
                         </div>
                         
                         <div class="mt-4 text-center">
-                            <a href="logout.php" class="btn btn-danger">
-                                <i class="fas fa-sign-out-alt me-1"></i> Se déconnecter
-                            </a>
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                             <i class="fas fa-user-slash me-1"></i> Supprimer le compte
+                        </button>
                         </div>
+
+                        <!-- Modal de confirmation de suppression -->
+                    <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+                         <div class="modal-dialog">
+                                <div class="modal-content bg-dark text-white">
+                                    <div class="modal-header border-bottom border-secondary">
+                                        <h5 class="modal-title" id="deleteAccountModalLabel">Confirmation de suppression</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                <div class="modal-body">
+                                    <p class="text-danger">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Attention :</strong> Vous êtes sur le point de supprimer définitivement votre compte.
+                                    </p>
+                                    <p>Cette action est <strong>irréversible</strong> et entraînera la suppression de toutes vos réservations et informations personnelles.</p>
+                                    <p>Êtes-vous sûr de vouloir continuer ?</p>
+                                </div>
+                            <div class="modal-footer border-top border-secondary">
+                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <form method="POST" action="dashboard.php">
+                                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                <button type="submit" name="delete_account" class="btn btn-danger">
+                                <i class="fas fa-user-slash me-1"></i> Supprimer définitivement
+                                </button>
+                                </form>
+                            </div>
+        </div>
+    </div>
+</div>
                     </div>
                 </div>
                 
                 <div class="col-md-9">
                     <div class=" profile-card bg-dark bg-opacity-50 p-3" id="v-pills-tabContent">
-                        
                         <!-- Onglet Profil -->
-                        <div class="tab-pane fade show active" id="v-pills-profile" role="tabpanel">
-                            <div class="card profile-card">
-                                <div class="card-header custom-card-header">
-                                    <h4 class="mb-0"><i class="fas fa-user-cog me-2"></i> Informations personnelles</h4>
-                                </div>
-                                <div class="card-body">
-                                    <?php echo $profileUpdateMessage; ?>
-                                    <form method="POST" action="dashboard.php">
-                                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                                        
-                                        <div class="row mb-3">
-                                            <div class="col-md-6 mb-3">
-                                                <label for="nom" class="form-label">Nom</label>
-                                                <input type="text" class="form-control" id="nom" name="nom" value="<?php echo htmlspecialchars($userProfile['nom'], ENT_QUOTES, 'UTF-8'); ?>" required>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <label for="prenom" class="form-label">Prénom</label>
-                                                <input type="text" class="form-control" id="prenom" name="prenom" value="<?php echo htmlspecialchars($userProfile['prenom'], ENT_QUOTES, 'UTF-8'); ?>" required>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label for="email" class="form-label">Email</label>
-                                            <input type="email" class="form-control" id="email" name="email" value="<?php echo htmlspecialchars($userProfile['email'], ENT_QUOTES, 'UTF-8'); ?>" required>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label for="telephone" class="form-label">Téléphone</label>
-                                            <input type="tel" class="form-control" id="telephone" name="telephone" value="<?php echo htmlspecialchars($userProfile['telephone'], ENT_QUOTES, 'UTF-8'); ?>">
-                                        </div>
-                                        
-                                        <div class="row mb-3">
-                                            <div class="col-md-6 mb-3">
-                                                <label for="date_naissance" class="form-label">Date de naissance</label>
-                                                <input type="date" class="form-control" id="date_naissance" name="date_naissance" value="<?php echo htmlspecialchars($userProfile['date_naissance'], ENT_QUOTES, 'UTF-8'); ?>">
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <label for="code_postal" class="form-label">Code postal</label>
-                                                <input type="text" class="form-control" id="code_postal" name="code_postal" value="<?php echo htmlspecialchars($userProfile['code_postal'], ENT_QUOTES, 'UTF-8'); ?>">
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                            <button type="submit" name="update_profile" class="btn btn-reservation">
-                                                <i class="fas fa-save me-1"></i> Enregistrer les modifications
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
+<div class="tab-pane fade show active" id="v-pills-profile" role="tabpanel">
+    <div class="p-3">
+        <h4 class="mb-4 accent-color"><i class="fas fa-user-cog me-2"></i> Informations personnelles</h4>
+        <?php echo $profileUpdateMessage; ?>
+        <form method="POST" action="dashboard.php">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            
+            <div class="row mb-3">
+                <div class="col-md-6 mb-3">
+                    <label for="nom" class="form-label text-white">Nom</label>
+                    <input type="text" class="form-control" id="nom" name="nom" value="<?php echo htmlspecialchars($userProfile['nom'], ENT_QUOTES, 'UTF-8'); ?>" required style="background-color: #000; border: 1px solid #c1a068; color: white;">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="prenom" class="form-label text-white">Prénom</label>
+                    <input type="text" class="form-control" id="prenom" name="prenom" value="<?php echo htmlspecialchars($userProfile['prenom'], ENT_QUOTES, 'UTF-8'); ?>" required style="background-color: #000; border: 1px solid #c1a068; color: white;">
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="email" class="form-label text-white">Email</label>
+                <input type="email" class="form-control" id="email" name="email" value="<?php echo htmlspecialchars($userProfile['email'], ENT_QUOTES, 'UTF-8'); ?>" required style="background-color: #000; border: 1px solid #c1a068; color: white;">
+            </div>
+            
+            <div class="mb-3">
+                <label for="telephone" class="form-label text-white">Téléphone</label>
+                <input type="tel" class="form-control" id="telephone" name="telephone" value="<?php echo htmlspecialchars($userProfile['telephone'], ENT_QUOTES, 'UTF-8'); ?>" style="background-color: #000; border: 1px solid #c1a068; color: white;">
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6 mb-3">
+                    <label for="date_naissance" class="form-label text-white">Date de naissance</label>
+                    <input type="date" class="form-control" id="date_naissance" name="date_naissance" value="<?php echo htmlspecialchars($userProfile['date_naissance'], ENT_QUOTES, 'UTF-8'); ?>" style="background-color: #000; border: 1px solid #c1a068; color: white;">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="code_postal" class="form-label text-white">Code postal</label>
+                    <input type="text" class="form-control" id="code_postal" name="code_postal" value="<?php echo htmlspecialchars($userProfile['code_postal'], ENT_QUOTES, 'UTF-8'); ?>" style="background-color: #000; border: 1px solid #c1a068; color: white;">
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" name="update_profile" class="btn btn-reservation">
+                    <i class="fas fa-save me-1"></i> Enregistrer les modifications
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+                        
+                        
+
                     </div>
                 </div>
             </div>
