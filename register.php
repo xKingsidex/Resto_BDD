@@ -35,36 +35,110 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
     
     // Continuer uniquement s'il n'y a pas d'erreur de date
-    if (empty($error_message)) {
-        // Vérifier si l'email existe déjà
-        $check_sql = "SELECT * FROM users WHERE email = :email";
-        $check_stmt = $pdo->prepare($check_sql);
-        $check_stmt->execute([":email" => $email]);
+    // Dans la partie traitement du formulaire de register.php
+if (empty($error_message)) {
+    // Vérifier si l'email existe déjà
+    $check_sql = "SELECT * FROM users WHERE email = :email";
+    $check_stmt = $pdo->prepare($check_sql);
+    $check_stmt->execute([":email" => $email]);
+    
+    if ($check_stmt->rowCount() > 0) {
+        $error_message = "Cet email est déjà utilisé.";
+    } else {
+        // Générer un token unique
+        $verification_token = bin2hex(random_bytes(32));
         
-        if ($check_stmt->rowCount() > 0) {
-            $error_message = "Cet email est déjà utilisé.";
-        } else {
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $sql = "INSERT INTO users (nom, prenom, email, password, code_postal, date_naissance, telephone) 
-                    VALUES (:nom, :prenom, :email, :password, :postal, :birthday, :phone)";
-            $stmt = $pdo->prepare($sql);
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        $sql = "INSERT INTO users (nom, prenom, email, password, code_postal, date_naissance, telephone, verification_token, email_verified) 
+                VALUES (:nom, :prenom, :email, :password, :postal, :birthday, :phone, :token, 0)";
+        $stmt = $pdo->prepare($sql);
+        
+        try {
+            $stmt->execute([
+                ":nom" => $nom,
+                ":prenom" => $prenom,
+                ":email" => $email,
+                ":password" => $hashed_password,
+                ":postal" => $postal,
+                ":birthday" => $birthday,
+                ":phone" => $phone,
+                ":token" => $verification_token
+            ]);
             
+            // Envoi de l'email de vérification
+            $to = $email;
+            $subject = "Vérification de votre compte - Le Gourmet Nomade";
+            $verification_link = "http://localhost/Resto_BDD/verify.php?token=" . $verification_token;
+            
+            // Configuration de l'envoi d'email avec PHPMailer
+            require 'PHPMailer/src/Exception.php';
+            require 'PHPMailer/src/PHPMailer.php';
+            require 'PHPMailer/src/SMTP.php';
+            
+            $mail = new PHPMailer\PHPMailer\PHPMailer(true);
             try {
-                $stmt->execute([
-                    ":nom" => $nom,
-                    ":prenom" => $prenom,
-                    ":email" => $email,
-                    ":password" => $hashed_password,
-                    ":postal" => $postal,
-                    ":birthday" => $birthday,
-                    ":phone" => $phone
-                ]);
-                $success_message = "Inscription réussie !";
-            } catch (PDOException $e) {
-                $error_message = "Erreur lors de l'inscription : " . $e->getMessage();
+                // Configuration du serveur
+                $mail->isSMTP();
+                $mail->Host = 'smtp.gmail.com'; // Ou votre serveur SMTP
+                $mail->SMTPAuth = true;
+                $mail->Username = 'enzo.foulon53@gmail.com'; // Votre email
+                $mail->Password = 'gxgr wkqp wvnk wtby'; // Votre mot de passe d'application
+                $mail->SMTPSecure = 'tls';
+                $mail->Port = 587;
+                $mail->SMTPOptions = array(
+                    'ssl' => array(
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                        'allow_self_signed' => true
+                    ));
+                
+                // Destinataires
+                $mail->setFrom('enzo.foulon53@gmail.com', 'Le Gourmet Nomade');
+                $mail->addAddress($email);
+                
+                // Contenu
+                $mail->isHTML(true);
+                $mail->Subject = $subject;
+                $mail->Body = "
+                    <html>
+                    <head>
+                        <style>
+                            body { font-family: Arial, sans-serif; }
+                            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                            .header { background-color: #c1a068; color: white; padding: 10px; text-align: center; }
+                            .content { padding: 20px; }
+                            .button { background-color: #c1a068; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class='container'>
+                            <div class='header'>
+                                <h2>Bienvenue chez Le Gourmet Nomade</h2>
+                            </div>
+                            <div class='content'>
+                                <p>Bonjour $prenom $nom,</p>
+                                <p>Merci pour votre inscription. Pour activer votre compte, veuillez cliquer sur le lien ci-dessous :</p>
+                                <p style='text-align: center;'><a href='$verification_link' class='button'>Vérifier mon compte</a></p>
+                                <p>Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :</p>
+                                <p>$verification_link</p>
+                                <p>À bientôt !</p>
+                                <p>L'équipe du Gourmet Nomade</p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                ";
+                
+                $mail->send();
+                $success_message = "Inscription réussie ! Un email de vérification a été envoyé à votre adresse. Veuillez vérifier votre compte avant de vous connecter.";
+            } catch (Exception $e) {
+                $error_message = "Erreur lors de l'envoi de l'email : " . $mail->ErrorInfo;
             }
+        } catch (PDOException $e) {
+            $error_message = "Erreur lors de l'inscription : " . $e->getMessage();
         }
     }
+}
 }
 ?>
 <!DOCTYPE html>

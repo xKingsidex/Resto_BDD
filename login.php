@@ -12,10 +12,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($user && password_verify($password, $user["password"])) {
-        $_SESSION["user_id"] = $user["id"];
-        $_SESSION["nom"] = $user["nom"];
-        header("Location: dashboard.php");
-        exit;
+        // Vérifier si l'email a été validé
+        if ($user["email_verified"] == 1) {
+            $_SESSION["user_id"] = $user["id"];
+            $_SESSION["nom"] = $user["nom"];
+            header("Location: dashboard.php");
+            exit;
+        } else {
+            $error_message = "Votre compte n'a pas été vérifié. Veuillez vérifier votre email pour activer votre compte.";
+        }
     } else {
         $error_message = "Email ou mot de passe incorrect.";
     }
