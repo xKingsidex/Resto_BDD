@@ -89,10 +89,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     try {
                         // Configuration du serveur
                         $mail->isSMTP();
-                        $mail->Host = 'smtp.gmail.com'; // Ou votre serveur SMTP
+                        $mail->Host = 'smtp.gmail.com'; 
                         $mail->SMTPAuth = true;
-                        $mail->Username = 'enzo.foulon53@gmail.com'; // Votre email
-                        $mail->Password = 'gxgr wkqp wvnk wtby'; // Votre mot de passe d'application
+                        $mail->Username = 'enzo.foulon53@gmail.com'; 
+                        $mail->Password = 'gxgr wkqp wvnk wtby'; 
                         $mail->SMTPSecure = 'tls';
                         $mail->Port = 587;
                         $mail->SMTPOptions = array(
