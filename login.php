@@ -16,7 +16,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } else {
         // Protection XSS en filtrant les entrées
         $email = filter_var($_POST["email"], FILTER_SANITIZE_EMAIL);
-        $password = $_POST["password"]; // Pas besoin de filtrer le mot de passe car il est hashé
+        $password = $_POST["password"]; 
 
         $sql = "SELECT * FROM users WHERE email = :email";
         $stmt = $pdo->prepare($sql);
