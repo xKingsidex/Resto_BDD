@@ -10,8 +10,8 @@ require_once "config.php";
 
 // Fonction pour établir la connexion à la base de données
 function connectDB() {
-    global $conn;
-    return $conn;
+    global $pdo;  // Utiliser $pdo au lieu de $conn
+    return $pdo;
 }
 
 // Génération d'un token CSRF
