@@ -1,6 +1,8 @@
 <?php
-require_once "config.php";
+
 session_start();
+require_once "config.php";
+
 
 $success_message = "";
 $error_message = "";

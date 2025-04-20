@@ -10,21 +10,7 @@ if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// Configuration de la base de données
-function connectDB() {
-    $host = 'localhost'; // Remplacez par votre hôte
-    $dbname = 'reservation_db'; // Remplacez par le nom de votre base de données
-    $username = 'root'; // Remplacez par votre nom d'utilisateur
-    $password = ''; // Remplacez par votre mot de passe
-    
-    try {
-        $db = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
-        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        return $db;
-    } catch(PDOException $e) {
-        die("Erreur de connexion à la base de données: " . $e->getMessage());
-    }
-}
+
 
 // Fonction pour récupérer les rendez-vous de l'utilisateur depuis la base de données
 function getUserAppointments($userId) {

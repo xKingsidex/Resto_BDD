@@ -1,6 +1,8 @@
 <?php
-require_once "config.php";
+
 session_start();
+require_once "config.php";
+
 
 // Génération du token CSRF s'il n'existe pas déjà
 if (!isset($_SESSION['csrf_token'])) {
