@@ -5,12 +5,19 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 
+// Inclure le fichier de configuration
+require_once "config.php";
+
+// Fonction pour établir la connexion à la base de données
+function connectDB() {
+    global $conn;
+    return $conn;
+}
+
 // Génération d'un token CSRF
 if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
-
-
 
 // Fonction pour récupérer les rendez-vous de l'utilisateur depuis la base de données
 function getUserAppointments($userId) {
@@ -514,8 +521,6 @@ $fullName = getFullName($userProfile);
         </div>
     </div>
 </main>
-
-
 
     <footer class="bg-dark text-white py-5">
         <div class="container">
